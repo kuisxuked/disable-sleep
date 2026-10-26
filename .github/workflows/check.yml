@@ -1,0 +1,15 @@
+name: Build and test
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./test.sh
+      - run: ARCHS='arm64 x86_64' ./build.sh
+      - run: codesign --verify --strict 'Disable Sleep.app'

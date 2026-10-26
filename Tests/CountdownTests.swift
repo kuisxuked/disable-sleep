@@ -1,0 +1,40 @@
+import Foundation
+
+@main
+struct CountdownTests {
+    static func main() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        var passed = 0
+        func check(_ condition: Bool, _ label: String) {
+            precondition(condition, label)
+            passed += 1
+            print("PASS: \(label)")
+        }
+        let task = try CountdownTask(minutes: 30, disableSleep: true, now: now)
+        check(task.deadline == now.addingTimeInterval(1800) && task.disableSleep, "30-minute countdown uses an absolute deadline and intended action")
+        check(task.remainingText(at: now) == "30:00", "Display remaining minutes")
+        check(task.secondsRemaining(at: now.addingTimeInterval(0.2)) == 1800, "Round remaining time up instead of firing early")
+        check(!task.isDue(at: now.addingTimeInterval(1799.9)), "Do not fire before deadline")
+        check(task.isDue(at: task.deadline), "Fire exactly at deadline")
+        check(task.isDue(at: now.addingTimeInterval(7200)), "Catch up a timer overdue after sleep or relaunch")
+        check(task.remainingText(at: now.addingTimeInterval(7200)) == "00:00", "Never display a negative countdown")
+        let longTask = try CountdownTask(minutes: 90, disableSleep: false, now: now)
+        check(longTask.remainingText(at: now) == "1:30:00" && !longTask.disableSleep, "Support longer countdowns and restoring sleep")
+        let restored = try JSONDecoder().decode(CountdownTask.self, from: JSONEncoder().encode(task))
+        check(restored == task, "Persist deadline and action across app restarts")
+        var failed = task
+        failed.failed = true
+        let restoredFailure = try JSONDecoder().decode(CountdownTask.self, from: JSONEncoder().encode(failed))
+        check(!restoredFailure.isDue(at: now.addingTimeInterval(7200)), "Failed timers do not repeatedly execute after relaunch")
+        for minutes in [0, -1, 10081, Int.max] {
+            do {
+                _ = try CountdownTask(minutes: minutes, disableSleep: true, now: now)
+                fatalError("Accepted invalid duration")
+            } catch CountdownError.invalidMinutes {
+                check(true, "Reject invalid duration \(minutes)")
+            }
+        }
+        check(try CountdownTask(minutes: 10080, disableSleep: true, now: now).secondsRemaining(at: now) == 604800, "Accept the maximum seven-day countdown")
+        print("\(passed) countdown checks passed.")
+    }
+}
