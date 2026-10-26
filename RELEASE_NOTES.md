@@ -1,20 +1,15 @@
-## A tiny menu bar switch. A little less Terminal.
+## Disable Sleep 1.4.1 — countdowns pause with the main switch
 
-- Native macOS menu bar app with one-click sleep control.
-- Tiny **中 / EN** language toggle; the panel stays compact.
-- Editable countdown presets and a **Never / 永不** option for indefinite wakefulness.
-- One-time authorization; subsequent switches do not request a password.
-- Defaults to the right side of the menu bar, away from the camera notch.
-- Saved countdowns resume after app relaunch; overdue timers catch up after wake.
+- Turning **Disable Sleep off** now pauses the countdown and freezes its remaining time.
+- Turning it **on again** resumes from the remaining time instead of the old deadline.
+- The panel shows **Paused / 已暂停** with a small pause icon.
+- Paused state and remaining time survive app restarts. Existing v1.4.0 timers migrate automatically.
+- New timers created while Disable Sleep is off start paused. Never mode still removes the timer and keeps sleep disabled.
 
-### Download
+**Download:** `DisableSleep-1.4.1-macOS-universal.zip` — macOS 13+, Apple Silicon and Intel. SHA-256 checksums are in `SHA256SUMS.txt`.
 
-**DisableSleep-1.4.0-macOS-universal.zip** supports Apple Silicon and Intel, macOS 13 or newer. Unzip and open **Disable Sleep.app**. The first actual change requests administrator authorization once.
-
-This community build is locally signed, **not Apple-notarized**. If macOS blocks an internet download, follow Apple's Privacy & Security → Open Anyway flow only if you trust the source. Checksums are in **SHA256SUMS.txt**.
-
-The switch controls `pmset -a disablesleep`, including idle sleep. Quitting does not reset it. Timers require the app to be running and do not wake a sleeping Mac. See the README for permissions and removal.
+This community build is locally signed, not Apple-notarized. See the README for the macOS first-launch flow and one-time administrator authorization.
 
 ---
 
-原生 macOS 菜单栏工具，支持小型中英文切换、倒计时与「永不」。首次授权一次，后续免密。通用版同时支持 Intel、Apple Silicon，最低 macOS 13。详见 [中文说明](https://github.com/kuisxuked/disable-sleep/blob/main/README.zh-CN.md)。
+关闭 Disable Sleep 时，倒计时会暂停；重新开启后从剩余时间继续。面板显示「已暂停」，重启应用也会保留暂停状态。旧版本已有倒计时会自动迁移。

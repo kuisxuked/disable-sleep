@@ -25,7 +25,7 @@
 也可以只用以下 **3 行**：
 
 ```sh
-curl -fL https://github.com/kuisxuked/disable-sleep/releases/download/v1.4.0/DisableSleep-1.4.0-macOS-universal.zip -o DisableSleep.zip
+curl -fL https://github.com/kuisxuked/disable-sleep/releases/download/v1.4.1/DisableSleep-1.4.1-macOS-universal.zip -o DisableSleep.zip
 ditto -x -k DisableSleep.zip .
 open "Disable Sleep.app"
 ```
@@ -39,8 +39,8 @@ open "Disable Sleep.app"
 - 开启执行 `pmset -a disablesleep 1`；关闭执行 `pmset -a disablesleep 0`。
 - 这是系统级设置，同时影响电池与外接电源，也会禁止闲置睡眠；退出应用不会自动还原。关闭开关只是允许正常睡眠，不会立刻强制休眠；其他程序和 macOS 合盖模式也可能使电脑保持唤醒。合盖运行时请保持通风。
 - 「永不」会取消已有倒计时，并一直禁止睡眠，直到手动关闭总开关。
-- 倒计时支持 1–10080 分钟，一次一个；重启应用后会保留。手动开关不取消倒计时。
-- 电脑已睡眠或应用已关闭时，定时会在唤醒或下次启动后补执行，**不会主动唤醒电脑**。
+- 倒计时支持 1–10080 分钟，一次一个。关闭总开关时暂停，重新开启后从剩余时间继续；关闭状态下新建的倒计时也会暂停。重启应用会保留暂停状态与剩余时间。
+- 正在运行的倒计时在应用重新启动或电脑唤醒后，会在总开关开启时补执行；已暂停的倒计时会等你重新开启开关。倒计时**不会主动唤醒电脑**。
 
 ## 权限与隐私
 

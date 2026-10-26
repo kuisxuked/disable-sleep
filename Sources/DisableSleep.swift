@@ -32,6 +32,7 @@ final class SleepModel: ObservableObject {
     func refresh() {
         guard !busy else { return }
         if !demo { disabled = try? control.readState() }
+        synchronizeCountdown()
         onChange?()
         tick()
     }
@@ -44,6 +45,7 @@ final class SleepModel: ObservableObject {
         catch { message = error.localizedDescription; return }
         if demo {
             countdown = try? CountdownTask(minutes: minutes, disableSleep: target)
+            synchronizeCountdown()
             updateTicker()
             tick()
             return
@@ -60,6 +62,7 @@ final class SleepModel: ObservableObject {
                 switch result {
                 case .success(let task):
                     self.countdown = task
+                    self.synchronizeCountdown()
                     self.persistCountdown()
                     self.updateTicker()
                     self.tick()
@@ -84,7 +87,7 @@ final class SleepModel: ObservableObject {
     }
 
     func retryCountdown() {
-        guard let task = countdown, task.failed, !busy else { return }
+        guard let task = countdown, task.failed, !task.isPaused, !busy else { return }
         execute(task.disableSleep, scheduled: true)
     }
 
@@ -93,6 +96,8 @@ final class SleepModel: ObservableObject {
         if demo {
             disabled = target
             if scheduled { countdown = nil; updateTicker() }
+            synchronizeCountdown()
+            tick()
             onChange?()
             return
         }
@@ -120,10 +125,21 @@ final class SleepModel: ObservableObject {
                     self.report(error)
                 }
                 if scheduled { self.persistCountdown(); self.updateTicker() }
+                self.synchronizeCountdown()
                 self.onChange?()
                 self.tick()
             }
         }
+    }
+
+    private func synchronizeCountdown() {
+        guard var task = countdown, let disabled else { return }
+        let previous = task
+        if disabled { task.resume(at: Date()) } else { task.pause(at: Date()) }
+        guard task != previous else { return }
+        countdown = task
+        persistCountdown()
+        updateTicker()
     }
 
     private func report(_ error: Error) {
@@ -143,7 +159,7 @@ final class SleepModel: ObservableObject {
     private func updateTicker() {
         ticker?.invalidate()
         ticker = nil
-        guard let task = countdown, !task.failed else { return }
+        guard let task = countdown, !task.failed, !task.isPaused else { return }
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -201,15 +217,21 @@ struct SleepPanel: View {
             Divider()
             if let task = model.countdown {
                 HStack(spacing: 8) {
-                    Image(systemName: "timer").foregroundStyle(.secondary)
+                    Image(systemName: task.isPaused ? "pause.circle" : "timer")
+                        .foregroundStyle(.secondary)
+                        .help(task.isPaused ? lang.text("已暂停", "Paused") : lang.text("倒计时", "Countdown"))
                     Text(task.failed ? lang.text("执行失败", "Failed") : model.remaining)
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
                     Text(task.disableSleep ? lang.text("禁止睡眠", "Keep awake") : lang.text("恢复睡眠", "Allow sleep"))
                         .font(.system(size: 12)).foregroundStyle(.secondary)
+                    if task.isPaused {
+                        Text(lang.text("已暂停", "Paused")).font(.system(size: 10)).foregroundStyle(.secondary)
+                    }
                     Spacer(minLength: 0)
                     if task.failed {
                         Button(action: model.retryCountdown) { Image(systemName: "arrow.clockwise") }
                             .help(lang.text("重试", "Retry"))
+                            .disabled(task.isPaused)
                     }
                     Button(action: model.cancelCountdown) { Image(systemName: "xmark.circle.fill") }
                         .help(lang.text("取消定时", "Cancel timer"))

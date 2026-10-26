@@ -33,7 +33,7 @@ Running a download, a long task, or your own workflow with the lid closed should
 Or run these **three commands**:
 
 ```sh
-curl -fL https://github.com/kuisxuked/disable-sleep/releases/download/v1.4.0/DisableSleep-1.4.0-macOS-universal.zip -o DisableSleep.zip
+curl -fL https://github.com/kuisxuked/disable-sleep/releases/download/v1.4.1/DisableSleep-1.4.1-macOS-universal.zip -o DisableSleep.zip
 ditto -x -k DisableSleep.zip .
 open "Disable Sleep.app"
 ```
@@ -46,13 +46,13 @@ Click the sun or moon in your menu bar. Approve the administrator prompt once wh
 
 - **Switch on:** `pmset -a disablesleep 1` — prohibit system sleep.
 - **Switch off:** `pmset -a disablesleep 0` — allow normal sleep again.
-- **Countdown:** enter a minute count or pick a preset, choose **Keep awake** or **Allow sleep**, then **Start**. One timer runs at a time.
+- **Countdown:** enter a minute count or pick a preset, choose **Keep awake** or **Allow sleep**, then **Start**. One timer runs at a time. Turning the main switch off pauses it; turning the switch on resumes the remaining time. A timer created while the switch is off stays paused.
 - **Never:** pick **Never** in the time field and press **Start**. This cancels the timer and keeps sleep disabled until you turn the main switch off.
 - **中 / EN:** tap the tiny button beside the app name. Your language choice is saved.
 
 The setting applies on battery and AC power and also disables **idle system sleep**. It remains in effect when the app quits. Allowing sleep does not force immediate sleep, and other apps or normal macOS closed-display conditions may still keep the Mac awake. Keep the Mac ventilated when running with its lid closed.
 
-Countdown deadlines survive app restarts. The app must be running to execute them; if the Mac is asleep or the app is closed when time runs out, the operation is applied after wake or the next launch. A timer does **not** wake a sleeping Mac. Failed timers stay visible for retry and do not repeatedly prompt.
+Countdowns survive app restarts, including their paused state and remaining time. An active countdown catches up after relaunch or wake when Disable Sleep is on; a paused countdown waits until you turn the switch on. The app must be running to execute a timer, and a timer does **not** wake a sleeping Mac. Failed timers stay visible for retry and do not repeatedly prompt.
 
 <details>
 <summary><strong>What does the one-time authorization permit?</strong></summary>

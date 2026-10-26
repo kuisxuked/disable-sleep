@@ -1,9 +1,12 @@
 import Foundation
 
 struct CountdownTask: Codable, Equatable, Sendable {
-    let deadline: Date
+    private(set) var deadline: Date
     let disableSleep: Bool
     var failed = false
+    private(set) var pausedRemaining: TimeInterval?
+
+    var isPaused: Bool { pausedRemaining != nil }
 
     init(minutes: Int, disableSleep: Bool, now: Date = Date()) throws {
         guard (1...10080).contains(minutes) else {
@@ -14,10 +17,21 @@ struct CountdownTask: Codable, Equatable, Sendable {
     }
 
     func secondsRemaining(at now: Date) -> Int {
-        max(0, Int(ceil(deadline.timeIntervalSince(now))))
+        max(0, Int(ceil(pausedRemaining ?? deadline.timeIntervalSince(now))))
     }
 
-    func isDue(at now: Date) -> Bool { !failed && deadline <= now }
+    mutating func pause(at now: Date) {
+        guard !isPaused else { return }
+        pausedRemaining = max(0, deadline.timeIntervalSince(now))
+    }
+
+    mutating func resume(at now: Date) {
+        guard let pausedRemaining else { return }
+        deadline = now.addingTimeInterval(pausedRemaining)
+        self.pausedRemaining = nil
+    }
+
+    func isDue(at now: Date) -> Bool { !failed && !isPaused && deadline <= now }
 
     func remainingText(at now: Date) -> String {
         let seconds = secondsRemaining(at: now)

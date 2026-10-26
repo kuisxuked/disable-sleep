@@ -22,6 +22,25 @@ struct CountdownTests {
         check(longTask.remainingText(at: now) == "1:30:00" && !longTask.disableSleep, "Support longer countdowns and restoring sleep")
         let restored = try JSONDecoder().decode(CountdownTask.self, from: JSONEncoder().encode(task))
         check(restored == task, "Persist deadline and action across app restarts")
+        var paused = task
+        paused.pause(at: now.addingTimeInterval(75.25))
+        check(paused.isPaused && paused.secondsRemaining(at: now.addingTimeInterval(7200)) == 1725, "Paused countdown freezes its remaining time")
+        check(!paused.isDue(at: now.addingTimeInterval(7200)), "Paused countdown never fires while sleep is allowed")
+        let frozen = paused
+        paused.pause(at: now.addingTimeInterval(1000))
+        check(paused == frozen, "Repeated refresh while off does not consume or reset remaining time")
+        var reloaded = try JSONDecoder().decode(CountdownTask.self, from: JSONEncoder().encode(paused))
+        check(reloaded.isPaused && reloaded.secondsRemaining(at: now.addingTimeInterval(86400)) == 1725, "Paused state survives relaunch without counting downtime")
+        let resumeTime = now.addingTimeInterval(7200)
+        reloaded.resume(at: resumeTime)
+        check(!reloaded.isPaused && reloaded.deadline == resumeTime.addingTimeInterval(1724.75), "Resume preserves fractional remaining time at a new deadline")
+        let resumedDeadline = reloaded.deadline
+        reloaded.resume(at: resumeTime.addingTimeInterval(50))
+        check(reloaded.deadline == resumedDeadline, "Repeated refresh while on does not extend the timer")
+        check(!reloaded.isDue(at: resumedDeadline.addingTimeInterval(-0.01)) && reloaded.isDue(at: resumedDeadline), "Resumed timer fires only at its adjusted deadline")
+        let legacyData = try JSONSerialization.data(withJSONObject: ["deadline": task.deadline.timeIntervalSinceReferenceDate, "disableSleep": true, "failed": false])
+        let legacy = try JSONDecoder().decode(CountdownTask.self, from: legacyData)
+        check(!legacy.isPaused && legacy.deadline == task.deadline, "Existing v1.4.0 timers migrate without data loss")
         var failed = task
         failed.failed = true
         let restoredFailure = try JSONDecoder().decode(CountdownTask.self, from: JSONEncoder().encode(failed))
