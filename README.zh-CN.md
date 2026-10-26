@@ -25,7 +25,7 @@
 也可以只用以下 **3 行**：
 
 ```sh
-curl -fL https://github.com/kuisxuked/disable-sleep/releases/download/v1.4.1/DisableSleep-1.4.1-macOS-universal.zip -o DisableSleep.zip
+curl -fL https://github.com/kuisxuked/disable-sleep/releases/download/v1.4.2/DisableSleep-1.4.2-macOS-universal.zip -o DisableSleep.zip
 ditto -x -k DisableSleep.zip .
 open "Disable Sleep.app"
 ```

@@ -33,7 +33,7 @@ Running a download, a long task, or your own workflow with the lid closed should
 Or run these **three commands**:
 
 ```sh
-curl -fL https://github.com/kuisxuked/disable-sleep/releases/download/v1.4.1/DisableSleep-1.4.1-macOS-universal.zip -o DisableSleep.zip
+curl -fL https://github.com/kuisxuked/disable-sleep/releases/download/v1.4.2/DisableSleep-1.4.2-macOS-universal.zip -o DisableSleep.zip
 ditto -x -k DisableSleep.zip .
 open "Disable Sleep.app"
 ```

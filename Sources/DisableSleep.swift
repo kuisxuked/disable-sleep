@@ -222,8 +222,10 @@ struct SleepPanel: View {
                         .help(task.isPaused ? lang.text("已暂停", "Paused") : lang.text("倒计时", "Countdown"))
                     Text(task.failed ? lang.text("执行失败", "Failed") : model.remaining)
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    Text(task.disableSleep ? lang.text("禁止睡眠", "Keep awake") : lang.text("恢复睡眠", "Allow sleep"))
+                    Text(task.disableSleep ? lang.text("禁止睡眠", "Keep awake") : lang.text("恢复睡眠", "Until sleep allowed"))
                         .font(.system(size: 12)).foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                     if task.isPaused {
                         Text(lang.text("已暂停", "Paused")).font(.system(size: 10)).foregroundStyle(.secondary)
                     }
