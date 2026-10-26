@@ -227,7 +227,12 @@ struct SleepPanel: View {
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                     if task.isPaused {
-                        Text(lang.text("已暂停", "Paused")).font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text(lang.text("（已暂停）", "(Paused)"))
+                            .font(.system(size: 10, weight: .regular, design: .serif))
+                            .italic()
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     Spacer(minLength: 0)
                     if task.failed {
