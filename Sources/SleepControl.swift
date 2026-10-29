@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 struct CommandResult: Sendable {
     let status: Int32
@@ -10,22 +11,41 @@ protocol CommandRunning: Sendable {
 }
 
 struct SystemCommandRunner: CommandRunning {
+    var timeout: TimeInterval?
+
     func run(_ executable: String, arguments: [String]) throws -> CommandResult {
         let process = Process()
-        let pipe = Pipe()
+        // A file avoids pipe deadlocks if a child emits more than a pipe buffer.
+        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("lidoff-command-" + UUID().uuidString)
+        guard FileManager.default.createFile(atPath: outputURL.path, contents: nil, attributes: [.posixPermissions: 0o600]) else {
+            throw SleepControlError.commandFailed("Could not create command output file.")
+        }
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+        let output = try FileHandle(forUpdating: outputURL)
+        defer { try? output.close() }
+        let finished = DispatchSemaphore(value: 0)
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
-        process.standardOutput = pipe
-        process.standardError = pipe
+        process.standardOutput = output
+        process.standardError = output
+        process.terminationHandler = { _ in finished.signal() }
         try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let limit = max(0.1, timeout ?? (executable == "/usr/bin/osascript" ? 120 : 10))
+        if finished.wait(timeout: .now() + limit) == .timedOut {
+            process.terminate()
+            if finished.wait(timeout: .now() + 1) == .timedOut { kill(process.processIdentifier, SIGKILL) }
+            process.waitUntilExit()
+            throw SleepControlError.commandTimedOut
+        }
         process.waitUntilExit()
-        return CommandResult(status: process.terminationStatus,
-                             output: String(decoding: data, as: UTF8.self))
+        try output.seek(toOffset: 0)
+        let data = try output.read(upToCount: 1_048_576) ?? Data()
+        return CommandResult(status: process.terminationStatus, output: String(decoding: data, as: UTF8.self))
     }
 }
 
 enum SleepControlError: LocalizedError {
+    case commandTimedOut
     case cancelled
     case commandFailed(String)
     case unreadableState
@@ -35,12 +55,13 @@ enum SleepControlError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .commandTimedOut: return AppLanguage.current.text("操作超时，请重试。", "The operation timed out. Try again.")
         case .cancelled: return AppLanguage.current.text("已取消授权，未做更改。", "Authorization cancelled. No changes were applied.")
         case .commandFailed(let message): return AppLanguage.current.text("macOS 无法完成更改。", "macOS could not complete the change.") + " " + message
         case .unreadableState: return AppLanguage.current.text("无法读取睡眠设置，请重新打开面板。", "Could not read the sleep setting. Reopen the panel.")
         case .verificationFailed: return AppLanguage.current.text("未能确认设置，请重试。", "macOS did not confirm the requested setting. Try again.")
         case .configurationFailed: return AppLanguage.current.text("未能确认免密授权，请重试。", "Could not confirm one-click setup. Try again.")
-        case .oneClickUnavailable(let detail): return AppLanguage.current.text("免密授权不可用，请查看 README 中的授权说明。", "One-click access is unavailable. See Authorization in the README.") + " " + detail
+        case .oneClickUnavailable(let detail): return AppLanguage.current.text("免密授权不可用，请查看 README 中的授权说明。", "One-click access is unavailable. See “What does the one-time authorization permit?” in the README.") + " " + detail
         }
     }
 }

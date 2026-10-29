@@ -1,0 +1,20 @@
+name: Bug report
+description: Report an unexpected behavior
+body:
+  - type: input
+    id: environment
+    attributes:
+      label: App version, macOS version, Mac model and architecture
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Power and session state
+      description: AC or battery, timer or Never, display option, and whether normal sleep was restored. Do not include passwords or private logs.

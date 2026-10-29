@@ -9,7 +9,7 @@ enum AppLanguage: String, Sendable {
     }
 
     static var current: AppLanguage {
-        UserDefaults.standard.string(forKey: "DisableSleep.language").flatMap(Self.init(rawValue:)) ?? systemDefault
+        UserDefaults.standard.string(forKey: "LidOff.language").flatMap(Self.init(rawValue:)) ?? systemDefault
     }
 
     func text(_ chinese: String, _ english: String) -> String {

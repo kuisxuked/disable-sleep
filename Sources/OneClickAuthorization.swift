@@ -1,7 +1,15 @@
 import Foundation
 import Darwin
 
-struct OneClickAuthorization: Sendable {
+protocol Authorizing: Sendable {
+    var isInstalled: Bool { get }
+    func configure(enable: Bool) throws
+    func verifyAccess() throws
+}
+
+extension Authorizing { func verifyAccess() throws {} }
+
+struct OneClickAuthorization: Authorizing {
     let userID: uid_t
     let runner: any CommandRunning
 
@@ -10,8 +18,8 @@ struct OneClickAuthorization: Sendable {
         self.runner = runner
     }
 
-    var rulePath: String { "/private/etc/sudoers.d/disablesleep-\(userID)" }
-    var marker: String { "# Managed by Disable Sleep for UID \(userID)" }
+    var rulePath: String { "/private/etc/sudoers.d/lidoff-\(userID)" }
+    var marker: String { "# Managed by LidOff for UID \(userID)" }
     var rule: String {
         // Numeric UID syntax avoids placing account names into sudoers or shell code.
         "#\(userID) ALL = (root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
@@ -24,11 +32,28 @@ struct OneClickAuthorization: Sendable {
             && (attributes[.posixPermissions] as? NSNumber)?.uint16Value == 0o440
     }
 
+    func verifyAccess() throws {
+        // sudo -l checks command authorization without executing either command.
+        for value in ["0", "1"] {
+            let result = try runner.run("/usr/bin/sudo", arguments: ["-n", "-k", "-l", "--", "/usr/bin/pmset", "-a", "disablesleep", value])
+            guard result.status == 0 else { throw SleepControlError.oneClickUnavailable(result.output) }
+        }
+    }
+
     func rootScript(enable: Bool) -> String {
         let preflight = """
         set -eu
         /usr/sbin/visudo -cf /private/etc/sudoers >/dev/null
         target='\(rulePath)'
+        legacy='/private/etc/sudoers.d/disablesleep-\(userID)'
+        if [ -L "$legacy" ] || [ -d "$legacy" ]; then
+            echo 'Refusing an unexpected legacy authorization file.' >&2
+            exit 1
+        fi
+        if [ -e "$legacy" ]; then
+            /usr/bin/grep -Fxq '# Managed by Disable Sleep for UID \(userID)' "$legacy" || { echo 'Legacy authorization belongs to another tool.' >&2; exit 1; }
+            /usr/sbin/visudo -cf "$legacy" >/dev/null
+        fi
         if [ -L "$target" ] || [ -d "$target" ]; then
             echo 'Refusing to replace an unexpected authorization file.' >&2
             exit 1
@@ -38,11 +63,11 @@ struct OneClickAuthorization: Sendable {
         fi
         """
         if !enable {
-            return preflight + "\n/bin/rm -f \"$target\"\n"
+            return preflight + "\n/usr/bin/pmset -a disablesleep 0\n/bin/rm -f \"$target\" \"$legacy\"\n"
         }
         return preflight + "\n" + """
         /usr/bin/grep -Eq '^[[:space:]]*[#@]includedir[[:space:]]+(/private)?/etc/sudoers[.]d([[:space:]]|$)' /private/etc/sudoers || { echo 'This Mac does not enable sudoers.d. No system settings were modified.' >&2; exit 1; }
-        temporary=$(/usr/bin/mktemp /private/etc/sudoers.d/.disablesleep-\(userID).XXXXXX)
+        temporary=$(/usr/bin/mktemp /private/etc/sudoers.d/.lidoff-\(userID).XXXXXX)
         trap '/bin/rm -f "$temporary"' EXIT
         /usr/bin/printf '%s\\n' '\(marker)' '\(rule)' > "$temporary"
         /usr/sbin/chown root:wheel "$temporary"
@@ -54,6 +79,7 @@ struct OneClickAuthorization: Sendable {
             echo 'Authorization validation failed; the new rule was removed.' >&2
             exit 1
         fi
+        /bin/rm -f "$legacy"
         """
     }
 
@@ -66,7 +92,7 @@ struct OneClickAuthorization: Sendable {
             do shell script "\(escaped)" with administrator privileges
         on error errorMessage number errorNumber
             if errorNumber is -128 then
-                return "DISABLE_SLEEP_USER_CANCELLED"
+                return "LIDOFF_USER_CANCELLED"
             else
                 error errorMessage number errorNumber
             end if
@@ -77,7 +103,7 @@ struct OneClickAuthorization: Sendable {
     func configure(enable: Bool) throws {
         let result = try runner.run("/usr/bin/osascript", arguments: ["-e", Self.appleScript(shellCommand: rootScript(enable: enable))])
         guard result.status == 0 else { throw SleepControlError.commandFailed(result.output) }
-        if result.output.trimmingCharacters(in: .whitespacesAndNewlines) == "DISABLE_SLEEP_USER_CANCELLED" {
+        if result.output.trimmingCharacters(in: .whitespacesAndNewlines) == "LIDOFF_USER_CANCELLED" {
             throw SleepControlError.cancelled
         }
         guard isInstalled == enable else { throw SleepControlError.configurationFailed }

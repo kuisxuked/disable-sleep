@@ -53,7 +53,7 @@ struct SleepControlTests {
         _ = try SleepControl(runner: unchanged).setDisabled(true)
         check(unchanged.calls.count == 1, "Skip authorization if requested state already applies")
 
-        let cancelled = FakeRunner([CommandResult(status: 0, output: "DISABLE_SLEEP_USER_CANCELLED\n")])
+        let cancelled = FakeRunner([CommandResult(status: 0, output: "LIDOFF_USER_CANCELLED\n")])
         do {
             try OneClickAuthorization(runner: cancelled).configure(enable: true)
             fatalError("Cancellation not detected")
@@ -103,6 +103,23 @@ struct SleepControlTests {
             let syntax = try SystemCommandRunner().run("/bin/sh", arguments: ["-n", scriptURL.path])
             check(syntax.status == 0, "Setup \(enable ? "install" : "remove") shell syntax is valid")
         }
+
+        let permissionRunner = FakeRunner([CommandResult(status: 0, output: "Allowed"), CommandResult(status: 0, output: "Allowed")])
+        try OneClickAuthorization(runner: permissionRunner).verifyAccess()
+        check(permissionRunner.calls.map { $0.1 } == ["0", "1"].map { ["-n", "-k", "-l", "--", "/usr/bin/pmset", "-a", "disablesleep", $0] }, "Check effective permission for both commands without executing them")
+        let permissionDenied = FakeRunner([CommandResult(status: 1, output: "Rule invalid")])
+        do { try OneClickAuthorization(runner: permissionDenied).verifyAccess(); fatalError("Expected permission failure") }
+        catch SleepControlError.oneClickUnavailable { check(true, "Detect a broken rule before enabling persistent sleep prevention") }
+        let start = Date()
+        do {
+            _ = try SystemCommandRunner(timeout: 0.1).run("/bin/sleep", arguments: ["10"])
+            fatalError("Expected timeout")
+        } catch SleepControlError.commandTimedOut {
+            check(Date().timeIntervalSince(start) < 4, "Hung subprocess is terminated within bounded time")
+        }
+        let largeOutput = try SystemCommandRunner().run("/usr/bin/head", arguments: ["-c", "200000", "/dev/zero"])
+        check(largeOutput.status == 0 && largeOutput.output.utf8.count == 200000, "Large subprocess output cannot deadlock a full pipe")
+        check(removeScript.contains("/usr/bin/pmset -a disablesleep 0"), "Revocation restores normal sleep before deleting the rule")
 
         // Exercise the real subprocess reader without altering power settings.
         let liveState = try SleepControl().readState()
