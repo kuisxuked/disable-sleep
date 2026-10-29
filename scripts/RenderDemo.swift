@@ -9,7 +9,7 @@ final class DemoScenes: NSObject {
     var scene = 0
 
     func launch() {
-        window.title = "Disable Sleep · Demo"
+        window.title = "LidOff · Demo"
         window.appearance = NSAppearance(named: .darkAqua)
         let menu = NSMenu()
         let root = NSMenuItem()
@@ -27,7 +27,7 @@ final class DemoScenes: NSObject {
     @objc func advance() { scene = (scene + 1) % 6; show() }
 
     func show() {
-        UserDefaults.standard.set(scene == 0 ? "zh" : "en", forKey: "DisableSleep.language")
+        UserDefaults.standard.set(scene == 0 ? "zh" : "en", forKey: "LidOff.language")
         switch scene {
         case 0, 1: model.cancelCountdown(); model.toggle(false)
         case 2: model.toggle(true)
@@ -36,7 +36,11 @@ final class DemoScenes: NSObject {
         case 5: model.cancelCountdown()
         default: break
         }
-        let host = NSHostingView(rootView: SleepPanel(model: model, minutes: scene == 3 ? "never" : "30"))
+        let host = NSHostingView(rootView: SleepPanel(model: model, minutes: scene == 3 ? "never" : "30")
+            .environment(\.colorScheme, .dark)
+            .environment(\.controlActiveState, .active)
+            .background(Color(red: 0.14, green: 0.14, blue: 0.15)))
+        host.appearance = NSAppearance(named: .darkAqua)
         window.contentView = host
         window.setContentSize(host.fittingSize)
         window.center()
@@ -54,6 +58,22 @@ struct DemoExporter {
         app.appearance = NSAppearance(named: .darkAqua)
         let scenes = DemoScenes()
         scenes.launch()
+        if CommandLine.arguments.contains("--export") {
+            let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/native-frames")
+            try! FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            for index in 0..<6 {
+                scenes.scene = index
+                scenes.show()
+                RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+                let view = scenes.window.contentView!
+                view.layoutSubtreeIfNeeded()
+                let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+                view.cacheDisplay(in: view.bounds, to: bitmap)
+                try! bitmap.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent("frame-\(index).png"))
+            }
+            print("Exported six native LidOff demo frames without changing power settings.")
+            return
+        }
         withExtendedLifetime(scenes) { app.run() }
     }
 }
